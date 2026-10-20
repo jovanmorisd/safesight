@@ -1,6 +1,6 @@
 # Deploying SafeSight on Vercel (+ Supabase)
 
-One Vercel project serves both the React site and the FastAPI backend (`api/index.py`).
+One Vercel project with two **services** (vercel.json): `frontend` (React, public at `/`) and `backend` (FastAPI in `backend/`, public at `/api` and `/media`). No bindings: only the browser calls the backend.
 Models run with ONNX Runtime (no PyTorch), so the function bundle is ~270 MB (< 500 MB limit).
 Supabase holds the database and all images / uploaded models.
 
@@ -16,8 +16,8 @@ git push -u origin main
 `.gitignore` keeps `.env`, `.pt` files, local data and datasets out; the 3 default `.onnx` models are included.
 
 ## 2. Import into Vercel
-vercel.com → **Add New → Project** → pick the repo → keep **Root Directory = `./`** (repo root;
-`vercel.json` sets the build) → open **Environment Variables** and add:
+vercel.com → **Add New → Project** → pick the repo → keep **Root Directory = `./`** (repo root; Vercel reads the two services from
+`vercel.json`) → open **Environment Variables** and add:
 
 | Name | Value |
 |---|---|

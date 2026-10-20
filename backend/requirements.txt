@@ -1,4 +1,14 @@
-# Local development: the app's runtime dependencies + a server + tests.
--r ../requirements.txt
-uvicorn[standard]>=0.30
-pytest>=8.0
+# Runtime dependencies of the backend (Vercel "backend" service, Docker image, local dev).
+# No PyTorch: models run as ONNX with onnxruntime. Training/export needs backend/requirements-train.txt.
+onnxruntime>=1.20
+numpy>=1.26
+pillow>=10.1
+fastapi>=0.115
+sqlmodel>=0.0.22
+psycopg[binary]>=3.2
+python-dotenv>=1.0
+httpx>=0.27
+python-multipart>=0.0.9
+pyyaml>=6.0
+reportlab>=4.0
+uvicorn[standard]>=0.30   # local server (Vercel runs the app itself)

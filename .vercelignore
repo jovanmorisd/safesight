@@ -8,3 +8,8 @@ backend/models/uploads
 **/__pycache__
 .server.log
 .pip_*.log
+backend/tests
+backend/scripts
+backend/.env
+samples
+notebooks
