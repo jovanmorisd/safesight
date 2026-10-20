@@ -1,0 +1,4 @@
+# Local development: the app's runtime dependencies + a server + tests.
+-r ../requirements.txt
+uvicorn[standard]>=0.30
+pytest>=8.0

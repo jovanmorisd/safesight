@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# App data (database, uploaded and annotated images)
+backend/data/
+backend/outputs/
+
+# Model weights: PyTorch files stay out of git; the three default ONNX models are committed (Vercel needs them)
+*.pt
+*.onnx
+!backend/models/*.onnx
+backend/models/uploads/
+backend/models/cache/
+
+# Datasets
+datasets/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Logs
+.pip_*.log
+*.log
+
+# Secrets
+.env
+**/.env

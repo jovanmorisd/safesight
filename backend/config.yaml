@@ -1,0 +1,34 @@
+# Default configuration. The detectors listed here are registered (and activated together as an
+# ensemble) on first start-up; more models can be added from the web UI (Models page) later.
+# Models are Ultralytics YOLO exports in ONNX format (scripts/export_onnx.py), run with onnxruntime.
+
+detectors:
+  # Pretrained on Roboflow "Construction Site Safety" (YOLOv8n) - good at helmets and hi-vis vests
+  # on construction sites. Source: github.com/snehilsanyal/Construction-Site-Safety-PPE-Detection
+  # (no license stated - academic demo only, to be replaced by our own trained model).
+  - name: construction-safety-yolov8n
+    weights: models/construction-safety-yolov8n.onnx
+    conf: 0.35
+    iou: 0.5
+
+  # SH17 release weights (CC BY-NC-SA 4.0) - adds gloves, shoes, glasses, ear-muffs and body
+  # parts (head/face/hands/foot); weak on construction hi-vis vests.
+  - name: sh17-yolov8s
+    weights: models/yolo8s.onnx
+    conf: 0.35
+    iou: 0.5
+    # class_map omitted -> guessed from the model's class names (see ppe_core/config.py).
+    # Give it explicitly when a model uses unusual names, e.g.
+    # class_map: {Hardhat: helmet, Safety Vest: vest, Person: person}
+
+pose:
+  weights: models/yolo11n-pose.onnx
+  conf: 0.35
+  keypoint_conf: 0.4
+
+association:
+  min_ioa: 0.3
+  min_person_height: 48
+
+policy:
+  default_required: [helmet, vest]

@@ -1,0 +1,16 @@
+services:
+  safesight:
+    build: .
+    ports:
+      - "8000:8000"
+    # DATABASE_URL / SUPABASE_* / RETENTION_DAYS (see backend/.env.example).
+    # Without them the app falls back to SQLite + local images in the volume below.
+    env_file:
+      - path: backend/.env
+        required: false
+    volumes:
+      - safesight-data:/data
+    restart: unless-stopped
+
+volumes:
+  safesight-data:

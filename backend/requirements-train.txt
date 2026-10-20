@@ -1,0 +1,7 @@
+# Only for training / exporting models (notebooks, scripts/export_onnx.py, tests/test_onnx_parity.py).
+# Install PyTorch first for your hardware, e.g.
+#   CUDA: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+#   CPU:  pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+ultralytics>=8.3
+onnx>=1.16
+onnxslim>=0.1

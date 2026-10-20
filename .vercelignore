@@ -1,0 +1,10 @@
+datasets
+backend/.venv
+backend/data
+backend/outputs
+backend/models/uploads
+**/*.pt
+**/node_modules
+**/__pycache__
+.server.log
+.pip_*.log
