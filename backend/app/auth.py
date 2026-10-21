@@ -62,12 +62,18 @@ def _secret() -> bytes:
         if env:
             _secret_cache = env.encode()
         else:
+            # Several server instances may start at once (serverless): only one insert can win, and
+            # everyone then uses the stored value, so all instances sign sessions with the same key.
             with Session(engine) as s:
                 row = s.get(AppSetting, "session_secret")
                 if row is None:
-                    row = AppSetting(key="session_secret", value=secrets.token_urlsafe(48))
-                    s.add(row)
-                    s.commit()
+                    try:
+                        s.add(AppSetting(key="session_secret", value=secrets.token_urlsafe(48)))
+                        s.commit()
+                    except Exception:
+                        s.rollback()
+                    s.expire_all()
+                    row = s.get(AppSetting, "session_secret")
                 _secret_cache = row.value.encode()
     return _secret_cache
 

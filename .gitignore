@@ -29,3 +29,6 @@ frontend/dist/
 # Secrets
 .env
 **/.env
+
+# Training notebooks, exported models and test results (kept local)
+training/

@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 from dotenv import load_dotenv
 from sqlalchemy import JSON, Column, event, inspect, text
+from sqlalchemy.pool import NullPool
 from sqlmodel import Field, Session, SQLModel, create_engine
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -165,7 +166,13 @@ def _make_engine():
         # Supabase gives "postgresql://..." (or legacy "postgres://"); use the psycopg 3 driver.
         url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
         url = url.replace("postgresql://", "postgresql+psycopg://", 1) if "+" not in url.split("://")[0] else url
-        return create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=5, pool_recycle=1800)
+        # No prepared statements, so Supabase's transaction pooler (port 6543) works too.
+        args = {"prepare_threshold": None}
+        if os.environ.get("VERCEL"):
+            # Serverless: many short-lived instances. Holding a pool in each one exhausts the
+            # Supabase pooler's client limit, so open a connection per use and close it after.
+            return create_engine(url, poolclass=NullPool, connect_args=args)
+        return create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=5, pool_recycle=1800, connect_args=args)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     eng = create_engine(f"sqlite:///{(DATA_DIR / 'ppe.db').as_posix()}",
                         connect_args={"check_same_thread": False})
