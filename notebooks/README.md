@@ -31,14 +31,31 @@ The model does **not** need person/head/hand labels: body regions come from the 
 | Notebook | What it is | Result |
 |---|---|---|
 | `results/checksafetycv.ipynb` | v1 ("notebook C"): YOLO11s fine-tuned on Construction Site Safety (person, helmet, vest, mask), 60 epochs, run on Kaggle on 21 Oct 2026 | **Worse than the current app.** CSS test: mAP50 0.881 / mAP50-95 0.638 vs. 0.897 / 0.684. Construction-PPE (never seen): 0.610 / 0.236 vs. 0.733 / 0.312. Don't attach it. |
-| `results/safesight-v2-train.ipynb` | v2 with **YOLO11s**: Construction-PPE + SH17 + Hard Hat Workers (+ CSS for training only), 8 classes, teacher pseudo-labels for the classes a dataset doesn't annotate, frozen test sets, per-worker accuracy with the app's own pipeline | **Better than the current app.** Construction-PPE test: mAP50 0.907 / mAP50-95 0.731 vs. 0.793 / 0.536. SH17 test: 0.671 / 0.448 vs. 0.577 / 0.362. Helmet+vest verdict accuracy per worker: 0.903 vs. 0.775. Register `safesight_v2_yolo11s.onnx` with confidence 0.30 and **Activate** (replace). Its Hard Hat Workers score isn't comparable because only v2 trained on that dataset. Kaggle `jeswintobias/safesight-v2-train`, 9 Nov 2026 |
-| *(pending)* | The same v2 notebook with `MODEL = "yolo26s.pt"` (**YOLO26s**) | Running on Kaggle; the executed notebook goes in `results/` when it finishes |
+| `results/safesight-v2-train.ipynb` | v2 with **YOLO11s**: Construction-PPE + SH17 + Hard Hat Workers (+ CSS for training only), 8 classes, teacher pseudo-labels for the classes a dataset doesn't annotate, frozen test sets, per-worker accuracy with the app's own pipeline | **Better than the current app.** Construction-PPE test: mAP50 0.907 / mAP50-95 0.731 vs. 0.793 / 0.536. SH17 test: 0.671 / 0.448 vs. 0.577 / 0.362. Helmet+vest verdict accuracy per worker: 0.903 vs. 0.775. Its Hard Hat Workers score isn't comparable because only v2 trained on that dataset. Superseded by YOLO26s. Kaggle `jeswintobias/safesight-v2-train`, 9 Nov 2026 |
+| `results/safeSight_v2_YOLO26s.ipynb` | The same v2 notebook with `MODEL = "yolo26s.pt"` (**YOLO26s**) | **Best so far: slightly ahead of YOLO11s on every test set.** Construction-PPE test: 0.913 / 0.740. SH17 test: 0.677 / 0.459. Helmet+vest verdict accuracy: 0.917. Register `safesight_v2_yolo26s.onnx` with confidence **0.45** and **Activate** (replace). 10 Nov 2026 |
 
 All notebooks in `results/` are the executed Kaggle versions, outputs included.
 
-**Attaching v2:** upload `safesight_v2_yolo11s.onnx` through **Models → Register**. Like any registered model, it's stored
-in Supabase, so it doesn't need to go in `backend/models/`. Set the confidence to 0.30, then **Activate**. Replacing the current
-detectors also makes the app lighter. Measured on a laptop CPU:
+**YOLO11s vs. YOLO26s** (same data, training rules and frozen test sets):
+
+| | v2 · YOLO11s | v2 · YOLO26s |
+|---|---|---|
+| Construction-PPE test mAP50 / mAP50-95 | 0.907 / 0.731 | **0.913 / 0.740** |
+| SH17 test mAP50 / mAP50-95 | 0.671 / 0.448 | **0.677 / 0.459** |
+| Best val mAP50-95 | 0.545 | **0.576** |
+| Helmet+vest verdict: accuracy / violation precision / violation recall | 0.903 / 0.866 / 0.926 | **0.917** / 0.866 / **0.963** |
+| Per-worker accuracy: helmet, vest, gloves, boots, goggles | 0.92, 0.96, 0.79, **0.68**, 0.96 | **0.93**, 0.96, 0.79, 0.63, **0.97** |
+| Confidence (best mean F1 on val) | 0.30 | 0.45 |
+| Final model training | 120 epochs, 4.3 h (best epoch 90) | 94 epochs, 4.0 h (best epoch 64) |
+| ONNX size / Kaggle CPU time | 37.9 MB / 135 ms | 38.2 MB / 120 ms |
+
+The gains are small (about one mAP point) but go the same way on every test set. The largest is in missed violations,
+which drop from 7.4% to 3.7%. Boots are the one item where YOLO26s is worse.
+
+**Attaching v2:** upload `safesight_v2_yolo26s.onnx` through **Models → Register**. Like any registered model, it's stored
+in Supabase, so it doesn't need to go in `backend/models/`. Set the confidence to 0.45, then **Activate**. Replacing the current
+detectors also makes the app lighter. Measured on a laptop CPU with the YOLO11s file (YOLO26s is the same size, 20.8 vs.
+21.5 GFLOPs):
 
 | Active detectors | Peak RAM | Time per photo |
 |---|---|---|
