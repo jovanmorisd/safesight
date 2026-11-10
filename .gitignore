@@ -32,3 +32,6 @@ frontend/dist/
 
 # Training notebooks, exported models and test results (kept local)
 training/
+
+# macOS
+.DS_Store

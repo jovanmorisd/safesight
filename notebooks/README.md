@@ -26,13 +26,89 @@ The model does **not** need person/head/hand labels: body regions come from the 
 3. Click **Activate** (replace) or **Add to ensemble** (run together with the current model).
 4. New inspections record the model name, so the dashboard and reports can compare versions.
 
-## Suggested notebooks
+## Notebooks
 
-- `train.ipynb` – unify class names across datasets, remove duplicate images, freeze splits,
-  fine-tune YOLO11s / YOLO26s, export `best.pt`.
-- `eval.ipynb` – compare pretrained vs. fine-tuned on the same frozen test split: mAP@0.5,
-  mAP@0.5:0.95 and per-class AP, plus person-level compliance accuracy.
+| Notebook | What it is | Result |
+|---|---|---|
+| `results/checksafetycv.ipynb` | v1 ("notebook C"): YOLO11s fine-tuned on Construction Site Safety (person, helmet, vest, mask), 60 epochs, run on Kaggle on 21 Oct 2026 | **Worse than the current app.** CSS test: mAP50 0.881 / mAP50-95 0.638 vs. 0.897 / 0.684. Construction-PPE (never seen): 0.610 / 0.236 vs. 0.733 / 0.312. Don't attach it. |
+| `results/safesight-v2-train.ipynb` | v2 with **YOLO11s**: Construction-PPE + SH17 + Hard Hat Workers (+ CSS for training only), 8 classes, teacher pseudo-labels for the classes a dataset doesn't annotate, frozen test sets, per-worker accuracy with the app's own pipeline | **Better than the current app.** Construction-PPE test: mAP50 0.907 / mAP50-95 0.731 vs. 0.793 / 0.536. SH17 test: 0.671 / 0.448 vs. 0.577 / 0.362. Helmet+vest verdict accuracy per worker: 0.903 vs. 0.775. Its Hard Hat Workers score isn't comparable because only v2 trained on that dataset. Superseded by YOLO26s. Kaggle `jeswintobias/safesight-v2-train`, 9 Nov 2026 |
+| `results/safeSight_v2_YOLO26s.ipynb` | The same v2 notebook with `MODEL = "yolo26s.pt"` (**YOLO26s**) | **Best so far: slightly ahead of YOLO11s on every test set.** Construction-PPE test: 0.913 / 0.740. SH17 test: 0.677 / 0.459. Helmet+vest verdict accuracy: 0.917. Register `safesight_v2_yolo26s.onnx` with confidence **0.45** and **Activate** (replace). 10 Nov 2026 |
 
-Local data already downloaded for experiments: `datasets/construction-ppe/` (Ultralytics
-Construction-PPE, AGPL-3.0; classes helmet, gloves, vest, boots, goggles, none, Person, no_helmet,
-no_goggle, no_gloves, no_boots).
+All notebooks in `results/` are the executed Kaggle versions, outputs included.
+
+**YOLO11s vs. YOLO26s** (same data, training rules and frozen test sets):
+
+| | v2 · YOLO11s | v2 · YOLO26s |
+|---|---|---|
+| Construction-PPE test mAP50 / mAP50-95 | 0.907 / 0.731 | **0.913 / 0.740** |
+| SH17 test mAP50 / mAP50-95 | 0.671 / 0.448 | **0.677 / 0.459** |
+| Best val mAP50-95 | 0.545 | **0.576** |
+| Helmet+vest verdict: accuracy / violation precision / violation recall | 0.903 / 0.866 / 0.926 | **0.917** / 0.866 / **0.963** |
+| Per-worker accuracy: helmet, vest, gloves, boots, goggles | 0.92, 0.96, 0.79, **0.68**, 0.96 | **0.93**, 0.96, 0.79, 0.63, **0.97** |
+| Confidence (best mean F1 on val) | 0.30 | 0.45 |
+| Final model training | 120 epochs, 4.3 h (best epoch 90) | 94 epochs, 4.0 h (best epoch 64) |
+| ONNX size / Kaggle CPU time | 37.9 MB / 135 ms | 38.2 MB / 120 ms |
+
+The gains are small (about one mAP point) but go the same way on every test set. The largest is in missed violations,
+which drop from 7.4% to 3.7%. Boots are the one item where YOLO26s is worse.
+
+**Attaching v2:** upload `safesight_v2_yolo26s.onnx` through **Models → Register**. Like any registered model, it's stored
+in Supabase, so it doesn't need to go in `backend/models/`. Set the confidence to 0.45, then **Activate**. Replacing the current
+detectors also makes the app lighter. Measured on a laptop CPU with the YOLO11s file (YOLO26s is the same size, 20.8 vs.
+21.5 GFLOPs):
+
+| Active detectors | Peak RAM | Time per photo |
+|---|---|---|
+| v2 + pose | ~470 MB | ~74 ms |
+| Current two detectors + pose | ~535 MB | ~107 ms |
+| v2 added to the ensemble | ~785 MB | ~154 ms |
+
+Why v1 fell short: CSS is a Roboflow export of mosaics (four photos per image, black cut-outs), so the model
+learned collages, and the same photos ended up in both train and test. Its only test on unseen photos
+(Construction-PPE) shows the gap. Its per-worker check never ran.
+
+### What each variant changes
+
+| | v1 (friend) | v2 · YOLO11s | v2 · YOLO26s |
+|---|---|---|---|
+| Training data | CSS only (2,801 mosaics) | Construction-PPE + SH17 + Hard Hat Workers + CSS (16,900 images, near-duplicates removed) | same as v2 · YOLO11s |
+| Classes | 4 (person, helmet, vest, mask) | 8 (+ gloves, boots, goggles, earmuffs) | 8 |
+| Architecture | YOLO11s | YOLO11s | **YOLO26s**: no DFL in the box head, small-object label assignment (STAL) |
+| Missing labels | not handled | teacher pseudo-labels (conf ≥ 0.5) | same, with a YOLO26s teacher |
+| Training | 60 epochs, one T4 | teacher ≤ 1.5 h + final model ≤ 5 h, both T4s, early stopping after 20 / 30 epochs without progress | same |
+| Test set | its own CSS split (shares photos with training) + Construction-PPE | frozen: Construction-PPE val, SH17 val, 15% of Hard Hat Workers | same frozen sets |
+| App-level check | skipped | per-worker accuracy with `ppe_core`; confidence threshold chosen on val | same + a check that the app's ONNX runner reproduces the model |
+| Output | `safesight_css_yolo11s.onnx` | `safesight_v2_yolo11s.onnx` | `safesight_v2_yolo26s.onnx` |
+
+What the comparisons answer:
+- **v1 → v2 · YOLO11s:** what better data and training bring, with the same architecture.
+- **v2 · YOLO11s → v2 · YOLO26s:** what the newer architecture brings, with the same data, rules and test sets.
+
+## Running v2 on Kaggle
+
+1. **The `safesight-app` input** already exists as the Kaggle dataset `jeswintobias/safesight-app`. It holds
+   `backend/ppe_core/*.py` and `backend/models/*.onnx`. When either changes, make a new dataset version from
+   those two folders (e.g. `kaggle datasets version -p <folder> -m "..." --dir-mode zip`).
+2. New notebook → *File → Import Notebook* → `results/safesight-v2-train.ipynb`. For the YOLO26s variant, set
+   `MODEL = "yolo26s.pt"` in the configuration cell. The YOLO11s run is the private Kaggle notebook `jeswintobias/safesight-v2-train`.
+3. Settings: Accelerator *GPU T4 x2* (`machine_shape: NvidiaTeslaT4`), Internet *On*.
+4. *Add Input*: `jeswintobias/construction-ppe-2026-11` (frozen copy of Construction-PPE, so the test set never
+   changes), `mugheesahmad/sh17-dataset-for-ppe-detection`, `andrewmvd/hard-hat-detection`,
+   `snehilsanyal/construction-site-safety-image-dataset-roboflow`, `jeswintobias/safesight-app`, and the output of
+   `jeswintobias/checksafetycv` (adds v1 to the comparison).
+5. **Dry run:** set `SMOKE = True` in the configuration cell and *Run All* (~10 min, CPU is fine). It stops early
+   if an input is missing.
+6. **Real run:** set `SMOKE = False`, then *Save Version → Save & Run All (Commit)*. It trains on both T4s, stops
+   each stage early when validation mAP50-95 stops improving (20 / 30 epochs of patience), and caps the stages at
+   `TEACHER_HOURS = 1.5` and `STUDENT_HOURS = 5`. The whole run takes about 7 h and always ends before Kaggle's 12 h limit.
+7. From the Output tab, download `safesight_v2_<model>.onnx` and `results/`. `results/summary.json` says whether to
+   **Activate** it, **Add to ensemble**, or keep the current models, and gives the confidence threshold to register
+   it with (chosen on the validation images); `results/model_notes.txt` is the text for the model's *Notes*.
+
+Test sets (frozen, so later runs stay comparable): Construction-PPE's official val split (the headline; the
+current zip has no test split), SH17's `val_files.txt`, and a fixed 15% of Hard Hat Workers. The exact file
+list is saved as `results/frozen_splits.csv`.
+
+Construction-PPE (Ultralytics, CC BY 4.0) changed in November 2026: it now has 1,000 images (800 train, 200 val),
+no test split, and 12 classes: helmet, gloves, vest, boots, goggles, Person, no_helmet, no_goggle, no_gloves,
+no_boots, forklift, no_vest. The `samples/` images come from the earlier version's test split.
